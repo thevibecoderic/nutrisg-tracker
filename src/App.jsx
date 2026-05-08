@@ -214,7 +214,7 @@ function FoodSearchModal({ onAdd, onClose }) {
 
 // ─── Daily view ───────────────────────────────────────────────────────────────
 
-function DayView({ date, logs, onChange }) {
+function DayView({ date, logs, onChange, onDateChange }) {
   const entries = logs[date] || [];
   const day = totals(entries);
   const [showSearch, setShowSearch] = useState(false);
@@ -240,7 +240,16 @@ function DayView({ date, logs, onChange }) {
       {/* Date header */}
       <div style={{ padding:"16px 20px 8px" }}>
         <p style={{ margin:0, fontSize:13, color:"var(--muted)" }}>Daily summary</p>
-        <p style={{ margin:0, fontSize:20, fontWeight:800 }}>{fmtDate(date)}</p>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+  <p style={{ margin:0, fontSize:20, fontWeight:800 }}>{fmtDate(date)}</p>
+  <input
+    type="date"
+    value={date}
+    max={todayStr()}
+    onChange={e => onChange && onDateChange(e.target.value)}
+    style={{ border:"1px solid var(--border)", borderRadius:8, padding:"4px 8px", fontSize:13, background:"var(--surface)", color:"var(--text)", cursor:"pointer" }}
+  />
+</div>
       </div>
 
       {/* Macro ring summary */}
@@ -501,7 +510,7 @@ export default function App() {
 
       {/* Content */}
       {(tab === "today" || tab === "day") && (
-        <DayView date={selectedDay} logs={logs} onChange={updateDay}/>
+        <DayView date={selectedDay} logs={logs} onChange={updateDay} onDateChange={setSelectedDay}/>
       )}
       {tab === "calendar" && (
         <CalendarView logs={logs} onSelectDay={selectDay}/>
