@@ -521,6 +521,9 @@ export default function App() {
           </button>
         ))}
       </nav>
+      <div style={{ textAlign:"center", padding:"12px 0 4px", fontSize:11, color:"var(--muted)" }}>
+  © Made by Eric 2026
+</div>
     </div>
   );
 }
