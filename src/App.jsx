@@ -43,7 +43,6 @@ const totals = entries => entries.reduce(
   { cal: 0, pro: 0, carb: 0, fat: 0 }
 );
 
-// SG-specific food suggestions shown before user types
 const SG_QUICK = [
   { name:"Chicken Rice", cal:607, pro:32, carb:74, fat:18, serving:"1 plate (400g)" },
   { name:"Char Kway Teow", cal:744, pro:28, carb:89, fat:30, serving:"1 plate (450g)" },
@@ -67,7 +66,6 @@ const SG_QUICK = [
   { name:"Char Siu Bao (steamed)", cal:185, pro:9, carb:25, fat:5, serving:"1 bun (90g)" },
 ];
 
-// Search Open Food Facts (real API, free)
 async function searchOFF(query) {
   try {
     const res = await fetch(
@@ -88,7 +86,7 @@ async function searchOFF(query) {
   } catch { return []; }
 }
 
-// ─── components ──────────────────────────────────────────────────────────────
+// ─── MacroBadge ──────────────────────────────────────────────────────────────
 
 function MacroBadge({ icon: Icon, label, value, unit, color }) {
   return (
@@ -99,6 +97,8 @@ function MacroBadge({ icon: Icon, label, value, unit, color }) {
     </div>
   );
 }
+
+// ─── FoodSearchModal ──────────────────────────────────────────────────────────
 
 function FoodSearchModal({ onAdd, onClose }) {
   const [query, setQuery] = useState("");
@@ -139,12 +139,14 @@ function FoodSearchModal({ onAdd, onClose }) {
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:100, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
       <div style={{ width:"100%", maxWidth:520, background:"var(--bg)", borderRadius:"20px 20px 0 0", padding:20, maxHeight:"92vh", display:"flex", flexDirection:"column", gap:12 }}>
+
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
           <span style={{ fontWeight:700, fontSize:17 }}>Add food</span>
-          <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--muted)" }}><X size={20}/></button>
+          <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--muted)" }}>
+            <X size={20}/>
+          </button>
         </div>
 
-        {/* Search bar */}
         <div style={{ display:"flex", gap:8, alignItems:"center", background:"var(--surface)", borderRadius:12, padding:"8px 12px" }}>
           <Search size={16} style={{ color:"var(--muted)", flexShrink:0 }}/>
           <input
@@ -157,7 +159,6 @@ function FoodSearchModal({ onAdd, onClose }) {
           {loading && <span style={{ fontSize:12, color:"var(--muted)" }}>…</span>}
         </div>
 
-        {/* Results */}
         <div style={{ overflowY:"auto", flex:1, display:"flex", flexDirection:"column", gap:6 }}>
           {!query && <p style={{ fontSize:12, color:"var(--muted)", margin:0 }}>Popular Singapore foods ↓</p>}
           {results.map((f, i) => (
@@ -180,7 +181,6 @@ function FoodSearchModal({ onAdd, onClose }) {
           )}
         </div>
 
-        {/* Config row */}
         {selected && (
           <div style={{ borderTop:"1px solid var(--border)", paddingTop:12, display:"flex", flexDirection:"column", gap:10 }}>
             <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
@@ -204,15 +204,18 @@ function FoodSearchModal({ onAdd, onClose }) {
               background:"var(--accent)", color:"#fff", border:"none", borderRadius:12,
               padding:"12px", fontWeight:700, fontSize:15, cursor:"pointer", display:"flex",
               alignItems:"center", justifyContent:"center", gap:6
-            }}><Check size={16}/>Add to {meal}</button>
+            }}>
+              <Check size={16}/>Add to {meal}
+            </button>
           </div>
         )}
+
       </div>
     </div>
   );
 }
 
-// ─── Daily view ───────────────────────────────────────────────────────────────
+// ─── DayView ──────────────────────────────────────────────────────────────────
 
 function DayView({ date, logs, onChange, onDateChange }) {
   const entries = logs[date] || [];
@@ -237,22 +240,21 @@ function DayView({ date, logs, onChange, onDateChange }) {
 
   return (
     <div style={{ padding:"0 0 80px" }}>
-      {/* Date header */}
+
       <div style={{ padding:"16px 20px 8px" }}>
         <p style={{ margin:0, fontSize:13, color:"var(--muted)" }}>Daily summary</p>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-  <p style={{ margin:0, fontSize:20, fontWeight:800 }}>{fmtDate(date)}</p>
-  <input
-    type="date"
-    value={date}
-    max={todayStr()}
-    onChange={e => onChange && onDateChange(e.target.value)}
-    style={{ border:"1px solid var(--border)", borderRadius:8, padding:"4px 8px", fontSize:13, background:"var(--surface)", color:"var(--text)", cursor:"pointer" }}
-  />
-</div>
+          <p style={{ margin:0, fontSize:20, fontWeight:800 }}>{fmtDate(date)}</p>
+          <input
+            type="date"
+            value={date}
+            max={todayStr()}
+            onChange={e => onDateChange(e.target.value)}
+            style={{ border:"1px solid var(--border)", borderRadius:8, padding:"4px 8px", fontSize:13, background:"var(--surface)", color:"var(--text)", cursor:"pointer" }}
+          />
+        </div>
       </div>
 
-      {/* Macro ring summary */}
       <div style={{ margin:"0 16px 16px", background:"var(--surface)", borderRadius:16, padding:16 }}>
         <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}>
           <div style={{ textAlign:"center" }}>
@@ -267,7 +269,6 @@ function DayView({ date, logs, onChange, onDateChange }) {
         </div>
       </div>
 
-      {/* Meal sections */}
       {byMeal.map(({ meal, items }) => (
         <div key={meal} style={{ margin:"0 16px 12px" }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
@@ -284,8 +285,10 @@ function DayView({ date, logs, onChange, onDateChange }) {
               {photoMap[e.id]
                 ? <img src={photoMap[e.id]} alt="" style={{ width:40, height:40, borderRadius:8, objectFit:"cover" }}/>
                 : (
-                  <button onClick={() => { setPhotoTarget(e.id); fileRef.current.click(); }}
-                    style={{ width:40, height:40, borderRadius:8, border:"1.5px dashed var(--border)", background:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"var(--muted)" }}>
+                  <button
+                    onClick={() => { setPhotoTarget(e.id); fileRef.current.click(); }}
+                    style={{ width:40, height:40, borderRadius:8, border:"1.5px dashed var(--border)", background:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"var(--muted)" }}
+                  >
                     <Camera size={14}/>
                   </button>
                 )
@@ -305,19 +308,20 @@ function DayView({ date, logs, onChange, onDateChange }) {
 
       <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{ display:"none" }} onChange={handlePhoto}/>
 
-      {/* FAB */}
       <button onClick={() => setShowSearch(true)} style={{
         position:"fixed", bottom:84, right:20, width:56, height:56, borderRadius:"50%",
         background:"var(--accent)", border:"none", cursor:"pointer", color:"#fff",
         boxShadow:"0 4px 20px rgba(0,0,0,0.25)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:50
-      }}><Plus size={24}/></button>
+      }}>
+        <Plus size={24}/>
+      </button>
 
       {showSearch && <FoodSearchModal onAdd={addEntry} onClose={() => setShowSearch(false)}/>}
     </div>
   );
 }
 
-// ─── Calendar view ────────────────────────────────────────────────────────────
+// ─── CalendarView ─────────────────────────────────────────────────────────────
 
 function CalendarView({ logs, onSelectDay }) {
   const today = todayStr();
@@ -338,9 +342,13 @@ function CalendarView({ logs, onSelectDay }) {
   return (
     <div style={{ padding:"0 16px 80px" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 4px" }}>
-        <button onClick={prevMonth} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--text)" }}><ChevronLeft size={20}/></button>
+        <button onClick={prevMonth} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--text)" }}>
+          <ChevronLeft size={20}/>
+        </button>
         <span style={{ fontWeight:800, fontSize:18 }}>{fmtMonth(ym + "-01")}</span>
-        <button onClick={nextMonth} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--text)" }}><ChevronRight size={20}/></button>
+        <button onClick={nextMonth} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--text)" }}>
+          <ChevronRight size={20}/>
+        </button>
       </div>
 
       <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", textAlign:"center", marginBottom:4 }}>
@@ -358,7 +366,8 @@ function CalendarView({ logs, onSelectDay }) {
           const hasLog = entries.length > 0;
           return (
             <button key={d} onClick={() => onSelectDay(d)} style={{
-              aspectRatio:"1", borderRadius:12, border: isToday ? "2px solid var(--accent)" : "1.5px solid transparent",
+              aspectRatio:"1", borderRadius:12,
+              border: isToday ? "2px solid var(--accent)" : "1.5px solid transparent",
               background: hasLog ? "var(--accent)22" : "var(--surface)",
               cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:1
             }}>
@@ -374,7 +383,7 @@ function CalendarView({ logs, onSelectDay }) {
   );
 }
 
-// ─── Trends view ─────────────────────────────────────────────────────────────
+// ─── TrendsView ───────────────────────────────────────────────────────────────
 
 function TrendsView({ logs }) {
   const [range, setRange] = useState("week");
@@ -403,11 +412,10 @@ function TrendsView({ logs }) {
     <div style={{ padding:"16px 16px 80px" }}>
       <p style={{ margin:"0 0 16px", fontSize:20, fontWeight:800 }}>Trends</p>
 
-      {/* Stats cards */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:20 }}>
         {[
           { label:"Avg calories", value: avgCal ? avgCal+" kcal" : "—", color:"var(--accent)" },
-          { label:"Best day", value: maxCal > 0 ? maxCal+" kcal" : "—", color:"#e09c28" },
+          { label:"Best day",     value: maxCal > 0 ? maxCal+" kcal" : "—", color:"#e09c28" },
           { label:"Logging streak", value: streak+" days", color:"#5ca3e0" },
         ].map(s => (
           <div key={s.label} style={{ background:"var(--surface)", borderRadius:14, padding:12, textAlign:"center" }}>
@@ -417,7 +425,6 @@ function TrendsView({ logs }) {
         ))}
       </div>
 
-      {/* Range selector */}
       <div style={{ display:"flex", gap:8, marginBottom:16 }}>
         {["week","month","30 days"].map(r => (
           <button key={r} onClick={() => setRange(r)} style={{
@@ -429,7 +436,6 @@ function TrendsView({ logs }) {
         ))}
       </div>
 
-      {/* Calorie bar chart */}
       <div style={{ background:"var(--surface)", borderRadius:16, padding:16, marginBottom:16 }}>
         <p style={{ margin:"0 0 12px", fontWeight:700, fontSize:14 }}>Calories</p>
         <ResponsiveContainer width="100%" height={160}>
@@ -443,7 +449,6 @@ function TrendsView({ logs }) {
         </ResponsiveContainer>
       </div>
 
-      {/* Macros line chart */}
       <div style={{ background:"var(--surface)", borderRadius:16, padding:16 }}>
         <p style={{ margin:"0 0 12px", fontWeight:700, fontSize:14 }}>Macros (g)</p>
         <ResponsiveContainer width="100%" height={160}>
@@ -474,27 +479,26 @@ export default function App() {
   useEffect(() => { saveLogs(logs); }, [logs]);
 
   const updateDay = (date, entries) => setLogs(l => ({ ...l, [date]: entries }));
-
   const selectDay = d => { setSelectedDay(d); setTab("day"); };
 
   const theme = {
-    "--bg": dark ? "#111" : "#f5f5f7",
-    "--surface": dark ? "#1c1c1e" : "#ffffff",
-    "--text": dark ? "#f2f2f7" : "#1c1c1e",
-    "--muted": dark ? "#8e8e93" : "#6e6e73",
-    "--border": dark ? "#2c2c2e" : "#e5e5ea",
-    "--accent": "#34c759",
+    "--bg":      dark ? "#111"     : "#f5f5f7",
+    "--surface": dark ? "#1c1c1e"  : "#ffffff",
+    "--text":    dark ? "#f2f2f7"  : "#1c1c1e",
+    "--muted":   dark ? "#8e8e93"  : "#6e6e73",
+    "--border":  dark ? "#2c2c2e"  : "#e5e5ea",
+    "--accent":  "#34c759",
   };
 
   const navItems = [
-    { id:"today", icon:Home,     label:"Today" },
-    { id:"calendar", icon:Calendar, label:"Calendar" },
-    { id:"trends", icon:TrendingUp, label:"Trends" },
+    { id:"today",    icon:Home,       label:"Today" },
+    { id:"calendar", icon:Calendar,   label:"Calendar" },
+    { id:"trends",   icon:TrendingUp, label:"Trends" },
   ];
 
   return (
     <div style={{ ...theme, minHeight:"100dvh", background:"var(--bg)", color:"var(--text)", fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif", maxWidth:480, margin:"0 auto", position:"relative" }}>
-      {/* Top bar */}
+
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 20px 8px", position:"sticky", top:0, background:"var(--bg)", zIndex:40, borderBottom:"1px solid var(--border)" }}>
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
           <Flame size={20} color="var(--accent)"/>
@@ -508,7 +512,6 @@ export default function App() {
         </button>
       </div>
 
-      {/* Content */}
       {(tab === "today" || tab === "day") && (
         <DayView date={selectedDay} logs={logs} onChange={updateDay} onDateChange={setSelectedDay}/>
       )}
@@ -519,20 +522,24 @@ export default function App() {
         <TrendsView logs={logs}/>
       )}
 
-      {/* Bottom nav */}
       <nav style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:480, background:"var(--surface)", borderTop:"1px solid var(--border)", display:"flex", padding:"8px 0 20px", zIndex:40 }}>
         {navItems.map(({ id, icon:Icon, label }) => (
-          <button key={id} onClick={() => { if(id==="today") setSelectedDay(todayStr()); setTab(id==="today"?"today":id); }}
+          <button
+            key={id}
+            onClick={() => { if(id==="today") setSelectedDay(todayStr()); setTab(id==="today" ? "today" : id); }}
             style={{ flex:1, background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3, padding:"4px 0",
-              color: (tab===id || (id==="today" && tab==="day")) ? "var(--accent)" : "var(--muted)" }}>
+              color: (tab===id || (id==="today" && tab==="day")) ? "var(--accent)" : "var(--muted)" }}
+          >
             <Icon size={22}/>
             <span style={{ fontSize:10, fontWeight:600 }}>{label}</span>
           </button>
         ))}
       </nav>
+
       <div style={{ textAlign:"center", padding:"12px 0 4px", fontSize:11, color:"var(--muted)" }}>
-  © Made by Eric 2026
-</div>
+        © Made by Eric 2026
+      </div>
+
     </div>
   );
 }
