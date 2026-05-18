@@ -116,3 +116,41 @@ export const SG_QUICK = [
   {name:"You Tiao (1 stick)",cal:280,pro:6,carb:38,fat:12,serving:"1 stick (100g)"},
   {name:"100 Plus (500ml)",cal:135,pro:0,carb:34,fat:0,serving:"1 bottle"},
 ];
+
+export async function searchOFF(query) {
+  try {
+    const res = await fetch(
+      `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&fields=product_name,nutriments,serving_size,brands&page_size=8`
+    );
+    const data = await res.json();
+    return (data.products||[])
+      .filter(p=>p.product_name&&p.nutriments?.["energy-kcal_100g"])
+      .slice(0,6)
+      .map(p=>({
+        name: p.product_name+(p.brands?` (${p.brands.split(",")[0]})`:""),
+        cal:  Math.round(p.nutriments["energy-kcal_100g"]||0),
+        pro:  Math.round(p.nutriments["proteins_100g"]||0),
+        carb: Math.round(p.nutriments["carbohydrates_100g"]||0),
+        fat:  Math.round(p.nutriments["fat_100g"]||0),
+        serving: p.serving_size||"per 100g",
+      }));
+  } catch { return []; }
+}
+
+export async function searchBarcode(barcode) {
+  try {
+    const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+    const data = await res.json();
+    if (data.status !== 1 || !data.product) return null;
+    const p = data.product;
+    const n = p.nutriments || {};
+    return {
+      name: p.product_name || p.product_name_en || "Unknown product",
+      cal:  Math.round(n["energy-kcal_100g"]||n["energy-kcal"]||0),
+      pro:  Math.round(n["proteins_100g"]||0),
+      carb: Math.round(n["carbohydrates_100g"]||0),
+      fat:  Math.round(n["fat_100g"]||0),
+      serving: p.serving_size||"per 100g",
+    };
+  } catch { return null; }
+}
