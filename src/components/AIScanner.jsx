@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Sparkles, Loader, X } from "lucide-react";
+import { Sparkles, Loader } from "lucide-react";
 import { haptic } from "../lib/helpers";
 
 async function scanWithGemini(base64, mimeType) {
@@ -33,7 +33,7 @@ Return ONLY this JSON schema structure:
         generationConfig: { 
           temperature: 0.1, 
           maxOutputTokens: 200,
-          responseMimeType: "application/json" // 👈 Forces Gemini to deliver pure JSON without Markdown blocks!
+          responseMimeType: "application/json"
         }
       })
     }
@@ -43,23 +43,13 @@ Return ONLY this JSON schema structure:
     const errText = await res.text();
     throw new Error(`Gemini error ${res.status}: ${errText}`);
   }
+  
   const data  = await res.json();
   const text  = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
   
   // Robust fallback clean up regex matching extra line breaks or whitespaces safely
   const clean = text.replace(/^```json\s*|```\s*$/gi, "").trim();
   
-  if (!clean) throw new Error("Empty response from Gemini");
-  return JSON.parse(clean);
-}
-
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Gemini error ${res.status}: ${errText}`);
-  }
-  const data  = await res.json();
-  const text  = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-  const clean = text.replace(/```json|```/g, "").trim();
   if (!clean) throw new Error("Empty response from Gemini");
   return JSON.parse(clean);
 }
