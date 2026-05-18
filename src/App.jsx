@@ -1,13 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Flame, Home, Calendar, TrendingUp, LogIn, LogOut, Palette, Loader, Settings } from "lucide-react";
+import { Flame, Home, Calendar, TrendingUp, LogIn, LogOut, Loader, Settings } from "lucide-react";
 import { todayStr, PROFILE_KEY, ACCENT_KEY, DARK_KEY, haptic } from "./lib/helpers";
-import { loadLogs, saveLog, loadFavs, saveFavs, loadCustomFoods, saveCustomFoods } from "./lib/supabase";
+import {
+  loadLogs, saveLog, loadFavs, saveFavs, loadCustomFoods, saveCustomFoods,
+  exchangeToken, refreshSession, signOut, getUser,
+  saveSession, loadSession, clearSession
+} from "./lib/supabase";
 import { registerSW } from "./lib/notifications";
 import DayView      from "./components/DayView";
 import CalendarView from "./components/CalendarView";
 import TrendsView   from "./components/TrendsView";
 import SettingsView from "./components/SettingsView";
-import { ColorPicker, SignInModal, SignOutConfirm } from "./components/Modals";
+import { SignInModal, SignOutConfirm } from "./components/Modals";
 
 export default function App() {
   const [tab, setTab]                   = useState("today");
@@ -16,10 +20,10 @@ export default function App() {
   const [favs, setFavs]                 = useState([]);
   const [customFoods, setCustomFoods]   = useState([]);
   const [recentFoods, setRecentFoods]   = useState(()=>{ try{ return JSON.parse(localStorage.getItem("nutrisg_recent_v1"))||[]; }catch{ return []; } });
-  const [syncing, setSyncing]           = useState(false);
-  const [showSignIn, setShowSignIn]     = useState(false);
-  const [showSignOut, setShowSignOut]   = useState(false);
-  const [showColors, setShowColors]     = useState(false);
+  const [session,  setSession]  = useState(loadSession);
+  const [syncing,  setSyncing]  = useState(false);
+  const [showSignIn,   setShowSignIn]   = useState(false);
+  const [showSignOut,  setShowSignOut]  = useState(false);
   const [offlineQueue, setOfflineQueue] = useState([]);
 
   const [accent, setAccent] = useState(()=>localStorage.getItem(ACCENT_KEY)||"#34c759");
@@ -27,45 +31,83 @@ export default function App() {
     const s=localStorage.getItem(DARK_KEY);
     return s!==null?s==="true":window.matchMedia?.("(prefers-color-scheme:dark)").matches;
   });
-  const [profile, setProfile] = useState(()=>{
-    try{return JSON.parse(localStorage.getItem(PROFILE_KEY));}catch{return null;}
-  });
 
   const saveTimer = useRef({});
+  const token  = session?.access_token  || null;
+  const userId = session?.user?.id      || null;
+  const userEmail = session?.user?.email || null;
 
   // persist prefs
   useEffect(()=>{ localStorage.setItem(ACCENT_KEY,accent); },[accent]);
   useEffect(()=>{ localStorage.setItem(DARK_KEY,String(dark)); },[dark]);
 
-  // register service worker for notifications + offline
+  // register service worker
   useEffect(()=>{ registerSW(); },[]);
 
-  // listen for dark mode toggle from settings
+  // dark mode toggle from settings
   useEffect(()=>{
     const handler = () => setDark(d=>!d);
     document.addEventListener("toggleDark", handler);
     return ()=>document.removeEventListener("toggleDark", handler);
   },[]);
 
-  // load data when profile changes
+  // handle magic link callback — check URL for token_hash on load
   useEffect(()=>{
-    if (!profile) { setLogs({}); setFavs([]); setCustomFoods([]); return; }
+    const url    = new URL(window.location.href);
+    const token_hash = url.searchParams.get("token_hash");
+    const type       = url.searchParams.get("type");
+    if (token_hash && type) {
+      // clear URL params immediately
+      window.history.replaceState({}, "", window.location.pathname);
+      setSyncing(true);
+      exchangeToken(token_hash, type)
+        .then(data => {
+          if (data?.access_token) {
+            const sess = { access_token: data.access_token, refresh_token: data.refresh_token, user: data.user };
+            setSession(sess);
+            saveSession(sess);
+          }
+        })
+        .catch(console.error)
+        .finally(()=>setSyncing(false));
+    }
+  },[]);
+
+  // refresh session on load if expired
+  useEffect(()=>{
+    if (!session?.refresh_token) return;
+    const refresh = async () => {
+      try {
+        const data = await refreshSession(session.refresh_token);
+        if (data?.access_token) {
+          const sess = { access_token: data.access_token, refresh_token: data.refresh_token, user: data.user };
+          setSession(sess);
+          saveSession(sess);
+        }
+      } catch { clearSession(); setSession(null); }
+    };
+    refresh();
+  },[]);
+
+  // load data when session changes
+  useEffect(()=>{
+    if (!userId) { setLogs({}); setFavs([]); setCustomFoods([]); return; }
     const load = async () => {
       setSyncing(true);
       try {
-        const logRows = await loadLogs(profile.id);
+        const logRows = await loadLogs(userId, token);
         const obj={};
         (logRows||[]).forEach(r=>{obj[r.date]=r.entries;});
         setLogs(obj);
-        const favRow = await loadFavs(profile.id);
+        const favRow = await loadFavs(userId, token);
         setFavs(favRow?.[0]?.foods||[]);
-        const cusRow = await loadCustomFoods(profile.id);
+        const cusRow = await loadCustomFoods(userId, token);
         setCustomFoods(cusRow?.[0]?.foods||[]);
       } catch(e){ console.error("Load error",e); }
       setSyncing(false);
     };
     load();
-  },[profile?.id]);
+  },[userId]);
 
   // flush offline queue when back online
   useEffect(()=>{
@@ -81,14 +123,14 @@ export default function App() {
   },[offlineQueue,profile]);
 
   const persistDay = useCallback(async (date,entries)=>{
-    if (!profile) return;
+    if (!userId) return;
     if (!navigator.onLine) {
       setOfflineQueue(q=>[...q.filter(x=>x.date!==date),{date,entries}]);
       return;
     }
-    try { await saveLog(profile.id,date,entries); }
+    try { await saveLog(userId, date, entries, token); }
     catch(e){ console.error("Save error",e); }
-  },[profile]);
+  },[userId, token]);
 
   const updateDay = useCallback((date,entries)=>{
     setLogs(l=>({...l,[date]:entries}));
@@ -99,8 +141,6 @@ export default function App() {
   const handleAdd = (entry)=>{
     const targetDate = entry.targetDate||selectedDay;
     const {targetDate:_,...clean}=entry;
-
-    // use functional update to avoid stale logs closure
     setLogs(prev => {
       const existing = prev[targetDate]||[];
       const next = {...prev,[targetDate]:[...existing,clean]};
@@ -108,21 +148,17 @@ export default function App() {
       saveTimer.current[targetDate]=setTimeout(()=>persistDay(targetDate,[...existing,clean]),800);
       return next;
     });
-
-    // track recent foods (last 10 unique)
     setRecentFoods(prev=>{
       const food={name:clean.name,cal:clean.cal,pro:clean.pro,carb:clean.carb,fat:clean.fat,serving:clean.serving.replace(/^\d+× /,"")};
       const next=[food,...prev.filter(f=>f.name!==food.name)].slice(0,10);
       localStorage.setItem("nutrisg_recent_v1",JSON.stringify(next));
       return next;
     });
-
-    // save custom foods to cloud
-    if (entry._isCustom && profile) {
+    if (entry._isCustom && userId) {
       const food={name:clean.name,cal:clean.cal,pro:clean.pro,carb:clean.carb,fat:clean.fat,serving:clean.serving.replace(/^\d+× /,"")};
       setCustomFoods(prev=>{
         const next=[...prev,food];
-        saveCustomFoods(profile.id,next).catch(console.error);
+        saveCustomFoods(userId, next, token).catch(console.error);
         return next;
       });
     }
@@ -139,28 +175,20 @@ export default function App() {
   const toggleFav = (food)=>{
     const next=favs.some(f=>f.name===food.name)?favs.filter(f=>f.name!==food.name):[...favs,food];
     setFavs(next);
-    if (profile) saveFavs(profile.id,next).catch(console.error);
+    if (userId) saveFavs(userId, next, token).catch(console.error);
   };
 
-  const handleSignIn=(p)=>{
-    setProfile(p);
-    localStorage.setItem(PROFILE_KEY,JSON.stringify(p));
-    setShowSignIn(false);
-  };
-  const handleSignOut=()=>{
-    setProfile(null);
-    localStorage.removeItem(PROFILE_KEY);
+  const handleSignOut = async ()=>{
+    if (token) await signOut(token).catch(()=>{});
+    clearSession();
+    setSession(null);
     setLogs({}); setFavs([]); setCustomFoods([]);
     setShowSignOut(false);
   };
 
   const handleDeleteData = () => {
     setLogs({}); setFavs([]); setCustomFoods([]); setRecentFoods([]);
-    localStorage.removeItem("nutrisg_logs_v1");
     localStorage.removeItem("nutrisg_recent_v1");
-    if (profile) {
-      saveLog(profile.id, "__clear__", []).catch(()=>{});
-    }
   };
 
   const selectDay=d=>{setSelectedDay(d);setTab("day");};
@@ -196,25 +224,14 @@ export default function App() {
           {tab==="day"&&selectedDay!==todayStr()&&(
             <button onClick={()=>setSelectedDay(todayStr())} style={{fontSize:12,color:"var(--accent)",background:"none",border:"none",cursor:"pointer"}}>← Today</button>
           )}
-          <button onClick={()=>setShowColors(true)} style={{background:"none",border:"1px solid var(--border)",borderRadius:20,cursor:"pointer",display:"flex",alignItems:"center",gap:4,padding:"4px 10px",color:"var(--text)"}}>
-            <Palette size={13}/><span style={{fontSize:12,fontWeight:600}}>Theme</span>
-          </button>
-          <button onClick={()=>profile?setShowSignOut(true):setShowSignIn(true)} style={{background:"none",border:"1px solid var(--border)",borderRadius:20,cursor:"pointer",display:"flex",alignItems:"center",gap:4,padding:"4px 10px",color:"var(--text)"}}>
-            {profile?<><LogOut size={13}/><span style={{fontSize:12,fontWeight:600}}>{profile.display_name}</span></>:<><LogIn size={13}/><span style={{fontSize:12,fontWeight:600}}>Sign in</span></>}
+          <button onClick={()=>userId?setShowSignOut(true):setShowSignIn(true)} style={{background:"none",border:"1px solid var(--border)",borderRadius:20,cursor:"pointer",display:"flex",alignItems:"center",gap:4,padding:"4px 10px",color:"var(--text)"}}>
+            {userId?<><LogOut size={13}/><span style={{fontSize:12,fontWeight:600}}>{userEmail?.split("@")[0]}</span></>:<><LogIn size={13}/><span style={{fontSize:12,fontWeight:600}}>Sign in</span></>}
           </button>
           <button onClick={()=>{setDark(d=>!d);haptic();}} style={{background:"none",border:"none",cursor:"pointer",fontSize:18}}>
             {dark?"☀️":"🌙"}
           </button>
         </div>
       </div>
-
-      {/* Sign in banner */}
-      {!profile && (
-        <div style={{margin:"12px 16px 0",background:"var(--accent)22",borderRadius:12,padding:"10px 14px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <span style={{fontSize:13,color:"var(--accent)",fontWeight:600}}>Sign in to sync across devices</span>
-          <button onClick={()=>setShowSignIn(true)} style={{background:"var(--accent)",color:"#fff",border:"none",borderRadius:8,padding:"5px 12px",fontSize:13,fontWeight:700,cursor:"pointer"}}>Sign in</button>
-        </div>
-      )}
 
       {/* Content */}
       {(tab==="today"||tab==="day") && (
@@ -235,7 +252,7 @@ export default function App() {
       {tab==="trends"   && <TrendsView logs={logs}/>}
       {tab==="settings" && (
         <SettingsView
-          profile={profile}
+          profile={session?.user}
           accent={accent}
           dark={dark}
           onSignOut={()=>setShowSignOut(true)}
@@ -263,9 +280,8 @@ export default function App() {
 
       <style>{`@keyframes spin{to{transform:rotate(360deg);}}`}</style>
 
-      {showColors   && <ColorPicker accent={accent} onChange={setAccent} onClose={()=>setShowColors(false)}/>}
-      {showSignIn   && <SignInModal onClose={()=>setShowSignIn(false)} onSignIn={handleSignIn}/>}
-      {showSignOut  && <SignOutConfirm name={profile?.display_name} onConfirm={handleSignOut} onCancel={()=>setShowSignOut(false)}/>}
+      {showSignIn   && <SignInModal onClose={()=>setShowSignIn(false)}/>}
+      {showSignOut  && <SignOutConfirm email={userEmail} onConfirm={handleSignOut} onCancel={()=>setShowSignOut(false)}/>}
     </div>
   );
 }

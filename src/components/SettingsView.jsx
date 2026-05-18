@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronRight, Bell, Target, User, Trash2, LogOut, Moon, Ruler, Save } from "lucide-react";
+import { ChevronRight, Bell, Target, User, Trash2, LogOut, Ruler, Save } from "lucide-react";
 import { GOAL_KEY, ACCENT_KEY, DARK_KEY, haptic } from "../lib/helpers";
 
 const NOTIF_KEY    = "nutrisg_notifs_v1";
@@ -158,10 +158,6 @@ export default function SettingsView({ profile, accent, dark, onSignOut, onSignI
 
       {/* Appearance */}
       <Section title="Appearance">
-        <Row icon={Moon} label="Dark mode" border={true}
-          right={toggle(dark, ()=>{})}
-          onClick={()=>document.dispatchEvent(new CustomEvent("toggleDark"))}
-        />
         <Row icon={Ruler} label="Units" border={false}
           right={
             <div style={{ display:"flex", gap:4 }}>

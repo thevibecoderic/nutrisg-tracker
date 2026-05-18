@@ -7,33 +7,42 @@ async function scanWithGemini(base64, mimeType) {
   if (!key) throw new Error("No Gemini key — add VITE_GEMINI_KEY to .env");
 
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{
           parts: [
+            { inline_data: { mime_type: mimeType, data: base64 } },
             {
-              inline_data: { mime_type: mimeType, data: base64 }
-            },
-            {
-              text: `You are a Singapore nutrition expert. Identify the food in this photo. Focus on Singapore hawker food, local cuisine, and common foods eaten in Singapore.
+              text: `You are a nutrition expert specialising in Singapore and Asian food. Look at this food photo and identify it.
 
-Respond ONLY with valid JSON, no markdown, no extra text:
-{"name":"specific food name","cal":calories as integer,"pro":protein grams as integer,"carb":carb grams as integer,"fat":fat grams as integer,"serving":"serving description","confidence":"high or medium or low"}`
+CRITICAL RULES:
+- You MUST always return a JSON result, even if you are only 50% sure
+- NEVER say you cannot identify it — always make your best guess
+- If it looks like a common dish, name it specifically (e.g. "Chicken Rice", "Laksa", "Char Kway Teow")
+- Use typical Singapore hawker portion sizes for calorie estimates
+- If it's a drink, estimate for a standard cup
+
+Return ONLY this JSON with no markdown, no explanation, no other text:
+{"name":"food name","cal":500,"pro":25,"carb":60,"fat":15,"serving":"1 serving (400g)","confidence":"high"}`
             }
           ]
         }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 300 }
+        generationConfig: { temperature: 0.1, maxOutputTokens: 200 }
       })
     }
   );
 
-  if (!res.ok) throw new Error(`Gemini error ${res.status}`);
-  const data = await res.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Gemini error ${res.status}: ${errText}`);
+  }
+  const data  = await res.json();
+  const text  = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
   const clean = text.replace(/```json|```/g, "").trim();
+  if (!clean) throw new Error("Empty response from Gemini");
   return JSON.parse(clean);
 }
 
