@@ -109,18 +109,20 @@ export default function App() {
     load();
   },[userId]);
 
-  // flush offline queue when back online
-  useEffect(()=>{
+// flush offline queue when back online
+  useEffect(() => {
     const flush = async () => {
-      if (!navigator.onLine || !profile || offlineQueue.length===0) return;
-      for (const {date,entries} of offlineQueue) {
-        try { await saveLog(profile.id,date,entries); } catch{}
+      if (!navigator.onLine || !userId || offlineQueue.length === 0) return;
+      for (const { date, entries } of offlineQueue) {
+        try {
+          await saveLog(userId, date, entries, token);
+        } catch {}
       }
       setOfflineQueue([]);
     };
-    window.addEventListener("online",flush);
-    return ()=>window.removeEventListener("online",flush);
-  },[offlineQueue,profile]);
+    window.addEventListener("online", flush);
+    return () => window.removeEventListener("online", flush);
+  }, [offlineQueue, userId, token]);
 
   const persistDay = useCallback(async (date,entries)=>{
     if (!userId) return;
