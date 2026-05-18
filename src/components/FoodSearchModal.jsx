@@ -3,8 +3,6 @@ import { Search, X, Check, Star, Edit3, Loader } from "lucide-react";
 import { SG_QUICK } from "../lib/foods";
 import { smartSearch } from "../lib/foodSearch";
 import { MEAL_TYPES, todayStr, fmtDate, haptic } from "../lib/helpers";
-import BarcodeScanner from "./BarcodeScanner";
-import AIScanner from "./AIScanner";
 import CustomFoodModal from "./CustomFoodModal";
 
 export default function FoodSearchModal({ onAdd, onClose, initialDate, favs, onToggleFav, customFoods, recentFoods }) {
@@ -17,7 +15,6 @@ export default function FoodSearchModal({ onAdd, onClose, initialDate, favs, onT
   const [activeTab, setActiveTab] = useState("search");
   const [showCustom, setShowCustom] = useState(false);
   const [logDate, setLogDate]     = useState(initialDate || todayStr());
-  const [scannedFood, setScannedFood] = useState(null);
   const debounce = useRef();
 
   const isFav = f => favs.some(x => x.name === f.name);
@@ -33,12 +30,6 @@ export default function FoodSearchModal({ onAdd, onClose, initialDate, favs, onT
       setLoading(false);
     }, 400);
   }, [query, customFoods]);
-
-  const handleScanResult = (food) => {
-    setScannedFood(food);
-    setSelected(food);
-    setActiveTab("search");
-  };
 
   const confirm = () => {
     if (!selected) return;
@@ -73,29 +64,6 @@ export default function FoodSearchModal({ onAdd, onClose, initialDate, favs, onT
           <span style={{ fontSize:13,color:"var(--muted)" }}>📅 Log to:</span>
           <input type="date" value={logDate} max={todayStr()} onChange={e=>{if(e.target.value)setLogDate(e.target.value);}}
             style={{ border:"none",background:"none",fontSize:13,color:"var(--accent)",fontWeight:700,cursor:"pointer",outline:"none",flex:1 }}/>
-        </div>
-
-        {/* Scanners */}
-        <div style={{ display:"flex",gap:8 }}>
-          <div style={{ flex:1 }}><AIScanner onResult={handleScanResult}/></div>
-          <div style={{ flex:1 }}><BarcodeScanner onResult={handleScanResult}/></div>
-        </div>
-
-        {scannedFood && (
-          <div style={{ background:"var(--accent)11",borderRadius:10,padding:"8px 12px",display:"flex",alignItems:"center",gap:10 }}>
-            <span style={{ fontSize:18 }}>✅</span>
-            <div>
-              <p style={{ margin:0,fontWeight:700,fontSize:13 }}>{scannedFood.name}</p>
-              <p style={{ margin:0,fontSize:11,color:"var(--muted)" }}>{scannedFood.cal} kcal · {scannedFood.serving}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Divider */}
-        <div style={{ display:"flex",alignItems:"center",gap:8 }}>
-          <div style={{ flex:1,height:1,background:"var(--border)" }}/>
-          <span style={{ fontSize:11,color:"var(--muted)" }}>or search</span>
-          <div style={{ flex:1,height:1,background:"var(--border)" }}/>
         </div>
 
         {/* Tabs */}
@@ -149,7 +117,7 @@ export default function FoodSearchModal({ onAdd, onClose, initialDate, favs, onT
                   <p style={{ margin:0,fontWeight:600,fontSize:14,color:"var(--text)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:200 }}>{f.name}</p>
                   <p style={{ margin:0,fontSize:12,color:"var(--muted)" }}>
                     {f.serving}
-                    {f.source && <span style={{ marginLeft:6, fontSize:10, color:"var(--accent)", fontWeight:600, background:"var(--accent)22", padding:"1px 5px", borderRadius:4 }}>{f.source}</span>}
+                    {f.source && <span style={{ marginLeft:6,fontSize:10,color:"var(--accent)",fontWeight:600,background:"var(--accent)22",padding:"1px 5px",borderRadius:4 }}>{f.source}</span>}
                   </p>
                 </div>
                 <span style={{ fontSize:13,fontWeight:700,color:"var(--accent)",whiteSpace:"nowrap" }}>{f.cal} kcal</span>
@@ -160,7 +128,7 @@ export default function FoodSearchModal({ onAdd, onClose, initialDate, favs, onT
             </div>
           ))}
           {activeTab==="search" && displayList.length===0 && !loading && (
-            <p style={{ color:"var(--muted)",fontSize:14,textAlign:"center",marginTop:20 }}>No results. Try Custom or scan.</p>
+            <p style={{ color:"var(--muted)",fontSize:14,textAlign:"center",marginTop:20 }}>No results. Try Custom to add manually.</p>
           )}
         </div>
 
