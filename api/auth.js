@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 
-const SUPA_URL = process.env.SUPABASE_URL;
-const SUPA_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY; // service key — server only, never in frontend
+const SUPA_URL = process.env.VITE_SUPABASE_URL;
+const SUPA_SERVICE_KEY = process.env.VITE_SUPABASE_KEY; // service key — server only, never in frontend
 
 const supaHeaders = {
   "apikey": SUPA_SERVICE_KEY,
