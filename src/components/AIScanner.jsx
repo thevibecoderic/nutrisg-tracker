@@ -46,12 +46,45 @@ Return ONLY this JSON schema structure:
   
   const data  = await res.json();
   const text  = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-  
-  // Robust fallback clean up regex matching extra line breaks or whitespaces safely
   const clean = text.replace(/^```json\s*|```\s*$/gi, "").trim();
   
   if (!clean) throw new Error("Empty response from Gemini");
   return JSON.parse(clean);
+}
+
+// Client-side downscaling helper to prevent 429 Token limit overloads
+function resizeAndCompressImage(file, maxWidth = 800, maxHeight = 800) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+    img.onload = () => {
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+      
+      // Export as highly compressed JPEG string snippet (0.7 quality)
+      const base64Str = canvas.toDataURL("image/jpeg", 0.7);
+      resolve(base64Str.split(",")[1]);
+    };
+    img.onerror = (err) => reject(err);
+  });
 }
 
 export default function AIScanner({ onResult }) {
@@ -68,13 +101,10 @@ export default function AIScanner({ onResult }) {
     setPreview(URL.createObjectURL(file));
 
     try {
-      const base64 = await new Promise((res, rej) => {
-        const reader = new FileReader();
-        reader.onload = () => res(reader.result.split(",")[1]);
-        reader.onerror = rej;
-        reader.readAsDataURL(file);
-      });
-      const result = await scanWithGemini(base64, file.type || "image/jpeg");
+      // Downsizes heavy images instantly so you don't exhaust the Free TPM rate limits
+      const compressedBase64 = await resizeAndCompressImage(file);
+      
+      const result = await scanWithGemini(compressedBase64, "image/jpeg");
       haptic("medium");
       onResult(result);
     } catch(err) {
