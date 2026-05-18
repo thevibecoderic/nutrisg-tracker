@@ -13,3 +13,5 @@ A clean, fast calorie and macronutrient tracker built for daily health logging. 
 - **Backend:** Node.js (Vercel Serverless)
 - **Database:** Supabase
 
+## 🔥 Visit Now 
+- Check it out here:  https://nutrisg-tracker.vercel.app/ 
