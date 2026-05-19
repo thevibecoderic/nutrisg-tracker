@@ -11,6 +11,7 @@ import CalendarView from "./components/CalendarView";
 import TrendsView   from "./components/TrendsView";
 import SettingsView from "./components/SettingsView";
 import { SignInModal, SignOutConfirm } from "./components/Modals";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 export default function App() {
   const [tab, setTab]                 = useState("today");
@@ -246,6 +247,7 @@ export default function App() {
 
       {showSignIn  && <SignInModal onClose={()=>setShowSignIn(false)} onSignIn={handleSignIn}/>}
       {showSignOut && <SignOutConfirm email={userEmail} onConfirm={handleSignOut} onCancel={()=>setShowSignOut(false)}/>}
+      <SpeedInsights />
     </div>
   );
 }
