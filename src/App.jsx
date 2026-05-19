@@ -242,10 +242,6 @@ export default function App() {
         ))}
       </nav>
 
-      <div style={{textAlign:"center", padding:"12px 0 4px", fontSize:11, color:"var(--muted)"}}>
-        © Made by Eric 2026
-      </div>
-
       <style>{`@keyframes spin{to{transform:rotate(360deg);}}`}</style>
 
       {showSignIn  && <SignInModal onClose={()=>setShowSignIn(false)} onSignIn={handleSignIn}/>}

@@ -201,9 +201,6 @@ export default function SettingsView({ profile, accent, dark, onSignOut, onSignI
         <Save size={18}/>{saved ? "Saved ✓" : "Save settings"}
       </button>
 
-      <p style={{ textAlign:"center", fontSize:11, color:"var(--muted)", marginTop:20 }}>
-        NutriSG v6.0 · © Made by Eric 2026
-      </p>
     </div>
   );
 }
